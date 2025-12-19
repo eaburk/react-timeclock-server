@@ -20,8 +20,7 @@ app.get('/api/time-entries', (req, res) => {
   const { startDate, endDate } = req.query;
 
   try {
-    //const rows = db.prepare('SELECT * FROM time_entries').all();
-    const stmt = db.prepare("SELECT * FROM time_entries WHERE DATE(startDate) >= ? AND DATE(startDate) <= ?");
+    const stmt = db.prepare("SELECT * FROM time_entries WHERE startDate >= ? AND startDate <= ? ORDER BY endDate NULLS LAST");
     rows = stmt.all(startDate, endDate);
     res.json(rows);
   } catch (err) {
@@ -51,6 +50,51 @@ app.post('/api/time-entries', (req, res) => {
   } catch (err) {
     console.error("Database Error:", err.message);
     res.status(500).json({ error: "Failed to save record" });
+  }
+});
+
+// PATCH route to update a time entry
+app.patch('/api/time-entries/:id', (req, res) => {
+  const { id } = req.params;
+
+  const { startDate, endDate } = req.body;
+  const fields = [];
+  const values = [];
+
+  if(startDate !== undefined) {
+    fields.push('startDate = ?');
+    values.push(startDate);
+  }
+
+  if(endDate !== "") {
+    fields.push('endDate = ?');
+    values.push(endDate);
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  try {
+    const stmt = db.prepare(`
+      UPDATE time_entries
+      SET ${fields.join(', ')}
+      WHERE id = ?
+    `);
+    const info = stmt.run(...values, id);
+
+    const stmtFetch = db.prepare('SELECT * FROM time_entries where id = ?');
+    const infoFetch = stmtFetch.run(id);
+
+    // Return the newly updated record
+    res.status(201).json({
+      id: infoFetch.id,
+      startDate,
+      endDate
+    });
+  } catch (err) {
+    console.error("Database Error:", err.message);
+    res.status(500).json({ error: "Failed to update record" + err });
   }
 });
 
