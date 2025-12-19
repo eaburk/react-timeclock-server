@@ -21,7 +21,7 @@ app.get('/api/time-entries', (req, res) => {
 
   try {
     //const rows = db.prepare('SELECT * FROM time_entries').all();
-    const stmt = db.prepare('SELECT * FROM time_entries WHERE DATE(startDate) >= ? AND DATE(startDate) <= ?');
+    const stmt = db.prepare("SELECT * FROM time_entries WHERE DATE(startDate) >= ? AND DATE(startDate) <= ?");
     rows = stmt.all(startDate, endDate);
     res.json(rows);
   } catch (err) {
@@ -34,8 +34,8 @@ app.post('/api/time-entries', (req, res) => {
   const { startDate, endDate } = req.body;
   console.log(startDate, endDate);
 
-  if (!startDate || !endDate) {
-    return res.status(400).json({ error: "Missing time_in or time_out" });
+  if (!startDate) {
+    return res.status(400).json({ error: "Missing time_in" });
   }
 
   try {
@@ -51,6 +51,21 @@ app.post('/api/time-entries', (req, res) => {
   } catch (err) {
     console.error("Database Error:", err.message);
     res.status(500).json({ error: "Failed to save record" });
+  }
+});
+
+// DELETE route to delete a time entry
+app.delete('/api/time-entries', (req, res) => {
+  const { id } = req.body;
+
+  try {
+    const stmt = db.prepare('DELETE FROM time_entries WHERE id = ?');
+    const info = stmt.run(id);
+
+    res.status(201).json(req.body);
+  } catch (err) {
+    console.error("Database Error:", err.message);
+    res.status(500).json({ error: "Failed to delete record" });
   }
 });
 
