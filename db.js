@@ -22,7 +22,8 @@ db.exec(`
     billed BOOLEAN DEFAULT false,
     manual_entry BOOLEAN DEFAULT false,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    companyId INTEGER
   );
 `);
 

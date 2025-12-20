@@ -7,21 +7,61 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// GET route to fetch list of companies
 app.get('/api/companies', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM companies').all();
+    const rows = db.prepare('SELECT * FROM companies ORDER BY lower(description)').all();
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/time-entries', (req, res) => {
-  const { startDate, endDate } = req.query;
+// POST route to create a company
+app.post('/api/companies', (req, res) => {
+  const { description } = req.body;
+
+  if (!description) {
+    return res.status(400).json({ error: "Missing company description" });
+  }
 
   try {
-    const stmt = db.prepare("SELECT * FROM time_entries WHERE startDate >= ? AND startDate <= ? ORDER BY endDate NULLS LAST");
-    rows = stmt.all(startDate, endDate);
+    const stmt = db.prepare('INSERT INTO companies (description) VALUES (?)');
+    const info = stmt.run(description);
+
+    // Return the newly created record
+    res.status(201).json({
+      id: info.lastInsertRowid,
+      description,
+    });
+  } catch (err) {
+    console.error("Database Error:", err.message);
+    res.status(500).json({ error: "Failed to save company" });
+  }
+});
+
+// DELETE route to delete a company
+app.delete('/api/companies', (req, res) => {
+  const { id } = req.body;
+
+  try {
+    const stmt = db.prepare('DELETE FROM companies WHERE id = ?');
+    const info = stmt.run(id);
+
+    res.status(201).json(req.body);
+  } catch (err) {
+    console.error("Database Error:", err.message);
+    res.status(500).json({ error: "Failed to delete record" });
+  }
+});
+
+// GET route to get list of time entries
+app.get('/api/time-entries', (req, res) => {
+  const { startDate, endDate, companyId } = req.query;
+
+  try {
+    const stmt = db.prepare("SELECT id, startDate, endDate, COALESCE(ROUND((julianday(endDate) - julianday(startDate)) * 1440),0) AS durationMinutes FROM time_entries WHERE startDate >= ? AND startDate <= ? and companyId = ? ORDER BY endDate NULLS LAST");
+    rows = stmt.all(startDate, endDate, companyId);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -30,22 +70,36 @@ app.get('/api/time-entries', (req, res) => {
 
 // POST route to create a time entry
 app.post('/api/time-entries', (req, res) => {
-  const { startDate, endDate } = req.body;
-  console.log(startDate, endDate);
+  const { startDate, endDate, companyId } = req.body;
 
   if (!startDate) {
     return res.status(400).json({ error: "Missing time_in" });
   }
 
   try {
-    const stmt = db.prepare('INSERT INTO time_entries (startDate, endDate) VALUES (?, ?)');
-    const info = stmt.run(startDate, endDate);
+    const stmt = db.prepare( 'INSERT INTO time_entries (startDate, endDate, companyId) VALUES (?, ?, ?)');
+    const info = stmt.run(startDate, endDate, companyId);
 
+    const stmtFetch = db.prepare(`
+      SELECT
+        id,
+        startDate,
+        endDate,
+        COALESCE(
+          ROUND((julianday(endDate) - julianday(startDate)) * 1440),
+          0
+        ) AS durationMinutes
+      FROM time_entries
+      WHERE id = ?
+    `);
+
+    const insertedRow = stmtFetch.get(info.lastInsertRowid);
     // Return the newly created record
     res.status(201).json({
-      id: info.lastInsertRowid,
-      startDate,
-      endDate
+      id: insertedRow.id,
+      startDate: insertedRow.startDate,
+      endDate: insertedRow.endDate,
+      durationMinutes: insertedRow.durationMinutes
     });
   } catch (err) {
     console.error("Database Error:", err.message);
@@ -83,14 +137,26 @@ app.patch('/api/time-entries/:id', (req, res) => {
     `);
     const info = stmt.run(...values, id);
 
-    const stmtFetch = db.prepare('SELECT * FROM time_entries where id = ?');
-    const infoFetch = stmtFetch.run(id);
+    const stmtFetch = db.prepare(`
+      SELECT
+        id,
+        startDate,
+        endDate,
+        COALESCE(
+          ROUND((julianday(endDate) - julianday(startDate)) * 1440),
+          0
+        ) AS durationMinutes
+      FROM time_entries
+      WHERE id = ?
+    `);
 
-    // Return the newly updated record
+    const insertedRow = stmtFetch.get(id);
+    // return the updated row
     res.status(201).json({
-      id: infoFetch.id,
-      startDate,
-      endDate
+      id: id,
+      startDate: insertedRow.startDate,
+      endDate: insertedRow.endDate,
+      durationMinutes: insertedRow.durationMinutes
     });
   } catch (err) {
     console.error("Database Error:", err.message);
