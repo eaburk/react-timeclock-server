@@ -60,7 +60,7 @@ app.get('/api/time-entries', (req, res) => {
   const { startDate, endDate, companyId } = req.query;
 
   try {
-    const stmt = db.prepare("SELECT id, startDate, endDate, COALESCE(ROUND((julianday(endDate) - julianday(startDate)) * 1440),0) AS durationMinutes FROM time_entries WHERE startDate >= ? AND startDate <= ? and companyId = ? ORDER BY endDate NULLS LAST");
+    const stmt = db.prepare("SELECT id, startDate, endDate, billed, COALESCE(ROUND((julianday(endDate) - julianday(startDate)) * 1440),0) AS durationMinutes FROM time_entries WHERE startDate >= ? AND startDate <= ? and companyId = ? ORDER BY endDate NULLS LAST");
     rows = stmt.all(startDate, endDate, companyId);
     res.json(rows);
   } catch (err) {
@@ -111,7 +111,7 @@ app.post('/api/time-entries', (req, res) => {
 app.patch('/api/time-entries/:id', (req, res) => {
   const { id } = req.params;
 
-  const { startDate, endDate } = req.body;
+  const { startDate, endDate, billed } = req.body;
   const fields = [];
   const values = [];
 
@@ -123,6 +123,11 @@ app.patch('/api/time-entries/:id', (req, res) => {
   if(endDate !== "") {
     fields.push('endDate = ?');
     values.push(endDate);
+  }
+
+  if(billed) {
+    fields.push('billed = ?');
+    values.push(billed);
   }
 
   if (fields.length === 0) {
