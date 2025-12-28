@@ -29,7 +29,6 @@ app.post('/api/companies', (req, res) => {
     const stmt = db.prepare('INSERT INTO companies (description) VALUES (?)');
     const info = stmt.run(description);
 
-    // Return the newly created record
     res.status(201).json({
       id: info.lastInsertRowid,
       description,
@@ -94,7 +93,7 @@ app.post('/api/time-entries', (req, res) => {
     `);
 
     const insertedRow = stmtFetch.get(info.lastInsertRowid);
-    // Return the newly created record
+
     res.status(201).json({
       id: insertedRow.id,
       startDate: insertedRow.startDate,
@@ -156,7 +155,7 @@ app.patch('/api/time-entries/:id', (req, res) => {
     `);
 
     const insertedRow = stmtFetch.get(id);
-    // return the updated row
+
     res.status(201).json({
       id: id,
       startDate: insertedRow.startDate,
