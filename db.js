@@ -3,7 +3,7 @@ const path = require('path');
 
 // Connect to the local file (it will be created if it doesn't exist)
 const db = new Database(path.join(__dirname, 'database.db'), {
-  verbose: console.log // Logs all SQL queries to your terminal
+  //verbose: console.log // Logs all SQL queries to your terminal
 });
 
 // Create tables if they don't exist
